@@ -12,7 +12,6 @@ import (
 )
 
 func Drop(ctx context.Context, filepath string, conn net.Conn) error {
-	fmt.Println("Dropping files...")
 	file, err := os.Open(filepath)
 	if err != nil {
 		return err
@@ -25,6 +24,7 @@ func Drop(ctx context.Context, filepath string, conn net.Conn) error {
 	header := fmt.Sprintf("%s:%d\n", info.Name(), info.Size())
 	conn.Write([]byte(header))
 	_, err = io.Copy(conn, file)
+	fmt.Println("File dropped.")
 	return err
 }
 

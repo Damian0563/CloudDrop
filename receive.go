@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/mdns"
 	"github.com/urfave/cli/v3"
 	"io"
+	"log"
 	"net"
 	"os"
 	"strconv"
@@ -38,6 +39,7 @@ func handleStream(conn net.Conn) error {
 }
 
 func Receive(ctx context.Context, c *cli.Command) error {
+	log.SetOutput(io.Discard)
 	fmt.Println("Receiving files...")
 	entriesCh := make(chan *mdns.ServiceEntry, 4)
 	done := make(chan bool)
