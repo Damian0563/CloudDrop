@@ -1,6 +1,6 @@
 <div align="center">
-	<img src="./images/logo.png" width="400" height="400" alt="CloudDrop" rounded="50%">
-	<strong style="font-size: 3rem;">CloudDrop</strong>
+	<img src="./images/logo.png" width="400" height="400" alt="CloudDrop" style="border-radius: 50%;"><br>
+	<h1>CloudDrop</h1>
 </div>
 The idea behind this project are to create a simple CLI tool that allows you to upload files to a cloud storage provider or share files P2P(peer to peer) in a local network
 
