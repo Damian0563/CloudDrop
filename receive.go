@@ -1,41 +1,43 @@
 package main
 
 import (
-	"bufio"
+	"archive/tar"
 	"context"
-	"errors"
 	"fmt"
 	"github.com/hashicorp/mdns"
+	"github.com/schollz/progressbar/v3"
 	"github.com/urfave/cli/v3"
 	"io"
 	"log"
 	"net"
 	"os"
-	"strconv"
-	"strings"
+	"path/filepath"
 )
 
 func handleStream(conn net.Conn) error {
-	reader := bufio.NewReader(conn)
-	header, err := reader.ReadString('\n')
-	if err != nil {
-		return err
+	tr := tar.NewReader(conn)
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		switch header.Typeflag {
+		case tar.TypeDir:
+			fmt.Printf("Creating directory: %s\n", header.Name)
+			os.MkdirAll(header.Name, 0755)
+		case tar.TypeReg:
+			fmt.Printf("Receiving file: %s\n", header.Name)
+			os.MkdirAll(filepath.Dir(header.Name), 0755)
+			outFile, _ := os.Create(header.Name)
+			bar := progressbar.DefaultBytes(header.Size, "Downloading "+header.Name)
+			io.Copy(outFile, io.TeeReader(tr, bar))
+			outFile.Close()
+		}
 	}
-	header = strings.TrimSpace(header)
-	parts := strings.Split(header, ":")
-	if len(parts) < 2 {
-		return errors.New("invalid header format")
-	}
-	fileName := parts[0]
-	fileSize, _ := strconv.ParseInt(parts[1], 10, 64)
-	fmt.Printf("Receiving %s (%d bytes)...\n", fileName, fileSize)
-	out, err := os.Create(fileName)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-	_, err = io.CopyN(out, reader, fileSize)
-	return err
+	return nil
 }
 
 func Receive(ctx context.Context, c *cli.Command) error {
