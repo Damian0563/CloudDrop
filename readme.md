@@ -21,4 +21,27 @@ This is a script that allows you to upload files to a cloud storage provider, an
 To do
 
 ### Usage
+<strong>Peer to Peer on local network</strong>
+Client A:
+````bash
+clouddrop drop /path/to/file
+````
+Client B:
+````bash
+clouddrop receive
+````
+
+#### Arguments
+| Argument | Description |
+| --- | --- |
+| send | Sends a file to the clouddrop to automatically assigned port on a local network |
+| receive | Receives a file from the sender |
+
+### Example use cases:
+1. Share files between computers on your local network
+2. Share files on your machine, effectively copying them to the receiever's path
+
+<strong>Cloud based approach</strong>
 To do
+### Contributing
+If you want to contribute to this project, you can do so by forking the repository and making a pull request.
