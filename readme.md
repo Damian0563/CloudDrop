@@ -1,4 +1,7 @@
-### <strong>CloudDrop</strong>
+<div align="center">
+	<img src="..images/logo.png" width="200" height="200">
+	<strong style="font-size: 1.5em;">CloudDrop</strong>
+</div>
 The idea behind this project are to create a simple CLI tool that allows you to upload files to a cloud storage provider or share files P2P(peer to peer) in a local network
 
 ### Have you ever wanted to share a file with someone or wanted to send a file from your computer to your mobile phone?
