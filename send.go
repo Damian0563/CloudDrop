@@ -14,9 +14,10 @@ import (
 	"path/filepath"
 )
 
-func Drop(ctx context.Context, rootPath string, conn net.Conn) error {
+func Drop(ctx context.Context, rootPath string, conn net.Conn, total int64) error {
 	tw := tar.NewWriter(conn)
 	defer tw.Close()
+	bar := progressbar.DefaultBytes(total, "Sending")
 	return filepath.WalkDir(rootPath, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -30,8 +31,8 @@ func Drop(ctx context.Context, rootPath string, conn net.Conn) error {
 		}
 		if !d.IsDir() {
 			f, _ := os.Open(path)
-			defer f.Close()
-			io.Copy(tw, f)
+			io.Copy(tw, io.TeeReader(f, bar))
+			f.Close()
 		}
 		return nil
 	})
@@ -75,6 +76,6 @@ func Send(ctx context.Context, c *cli.Command) error {
 		} else {
 			total = fileInfo.Size()
 		}
-		return Drop(ctx, file, conn)
+		return Drop(ctx, file, conn, total)
 	}
 }
