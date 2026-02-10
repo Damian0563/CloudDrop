@@ -14,13 +14,23 @@ func main() {
 		Commands: []*cli.Command{
 			{
 				Name:   "drop",
-				Usage:  "Upload files to cloud storage services.",
+				Usage:  "Upload files to P2P network. Must provide a valid file path to a file or directory.",
 				Action: Send,
 			},
 			{
-				Name:   "receive",
-				Usage:  "Receive files from cloud storage services.",
+				Name:   "pick",
+				Usage:  "Receive files from P2P network. No arguments required.",
 				Action: Receive,
+			},
+			{
+				Name:   "send",
+				Usage:  "Upload files over public internet. Must provide a valid file path.",
+				Action: superSend,
+			},
+			{
+				Name:   "receive",
+				Usage:  "Receive files over public internet. Must provide a valid code received from the sender.",
+				Action: superReceive,
 			},
 		},
 	}

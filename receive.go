@@ -40,6 +40,10 @@ func handleStream(conn net.Conn) error {
 	return nil
 }
 
+func superReceive(ctx context.Context, c *cli.Command) error {
+	panic("not implemented")
+}
+
 func Receive(ctx context.Context, c *cli.Command) error {
 	log.SetOutput(io.Discard)
 	fmt.Println("Receiving files...")

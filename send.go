@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/tar"
+	"cloud.google.com/go/storage"
 	"context"
 	"errors"
 	"fmt"
@@ -36,6 +37,59 @@ func Drop(ctx context.Context, rootPath string, conn net.Conn, total int64) erro
 		}
 		return nil
 	})
+}
+
+func getKey() string {
+
+	return ""
+}
+
+func setKey(key string, url string) error {
+
+	return nil
+}
+
+func sendPayload(fileName string) (error, string) {
+	ctx := context.Background()
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return err, ""
+	}
+	bucket := client.Bucket("clouddrop")
+	obj := bucket.Object(fileName)
+	w := obj.NewWriter(ctx)
+	file, err := os.Open(fileName)
+	if err != nil {
+		return err, ""
+	}
+	_, err = io.Copy(w, file)
+	if err != nil {
+		return err, ""
+	}
+	return nil, ""
+}
+
+func superSend(ctx context.Context, c *cli.Command) error {
+	if c.Args().Len() < 1 {
+		return errors.New("you must provide a file path, no arguments provided")
+	} else if c.Args().Len() > 1 {
+		return errors.New("you can only provide one file path, too many arguments provided")
+	}
+	file := c.Args().First()
+	fileInfo, err := os.Stat(file)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("filepath not resolved: %s", file)
+		}
+	}
+	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "./credentials.json")
+	err, url := sendPayload(fileInfo.Name())
+	if err != nil {
+		return err
+	}
+	key := getKey()
+	err = setKey(key, url)
+	return err
 }
 
 func Send(ctx context.Context, c *cli.Command) error {
