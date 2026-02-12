@@ -49,24 +49,31 @@ func setKey(key string, url string) error {
 	return nil
 }
 
-func sendPayload(fileName string) (error, string) {
+func sendPayload(filePath string, fileInfo os.FileInfo) (string, error) {
 	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
 	if err != nil {
-		return err, ""
+		return "", err
 	}
+	defer client.Close()
 	bucket := client.Bucket("clouddrop")
-	obj := bucket.Object(fileName)
+	obj := bucket.Object(fileInfo.Name())
 	w := obj.NewWriter(ctx)
-	file, err := os.Open(fileName)
+	file, err := os.Open(filePath)
 	if err != nil {
-		return err, ""
+		return "", err
 	}
-	_, err = io.Copy(w, file)
+	defer file.Close()
+	bar := progressbar.DefaultBytes(fileInfo.Size(), "Sending")
+	_, err = io.Copy(w, io.TeeReader(file, bar))
 	if err != nil {
-		return err, ""
+		return "", err
 	}
-	return nil, ""
+	if err := w.Close(); err != nil {
+		return "", err
+	}
+	url := fmt.Sprintf("gs://clouddrop/%s", fileInfo.Name())
+	return url, nil
 }
 
 func superSend(ctx context.Context, c *cli.Command) error {
@@ -83,7 +90,7 @@ func superSend(ctx context.Context, c *cli.Command) error {
 		}
 	}
 	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "./credentials.json")
-	err, url := sendPayload(fileInfo.Name())
+	url, err := sendPayload(file, fileInfo)
 	if err != nil {
 		return err
 	}

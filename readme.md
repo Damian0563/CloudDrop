@@ -25,24 +25,37 @@ To do
 
 ### Usage
 <strong>Peer to Peer on local network</strong>
-Client A:
+Client A (Sender):
 ````bash
 clouddrop drop /path/to/file
 ````
-Client B:
+Client B (Receiver):
 ````bash
-clouddrop receive
+clouddrop pick
 ````
 
-#### Arguments
-| Argument | Description |
+<strong>Over public internet</strong>
+Client A (Sender):
+````bash
+clouddrop send /path/to/file
+````
+Client B (Receiver):
+````bash
+clouddrop receive <code>
+````
+
+#### Commands
+| Command | Description |
 | --- | --- |
-| send | Sends a file to the clouddrop to automatically assigned port on a local network |
-| receive | Receives a file from the sender |
+| drop | Upload files to P2P network. Must provide a valid file path to a file or directory. |
+| pick | Receive files from P2P network. No arguments required. |
+| send | Upload files over public internet. Must provide a valid file path. |
+| receive | Receive files over public internet. Must provide a valid code received from the sender. |
 
 ### Example use cases:
-1. Share files between computers on your local network
-2. Share files on your machine, effectively copying them to the receiever's path
+1. Share files between computers on your local network (P2P)
+2. Share files over the public internet without cloud storage
+3. Share files on your machine, effectively copying them to the receiver's path
 
 <strong>Cloud based approach</strong>
 To do

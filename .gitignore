@@ -1,4 +1,4 @@
 .env
-/test
-./clouddrop
-./credentials.json
+test
+clouddrop
+credentials.json
