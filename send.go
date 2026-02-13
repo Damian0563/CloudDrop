@@ -2,17 +2,22 @@ package main
 
 import (
 	"archive/tar"
-	"cloud.google.com/go/storage"
 	"context"
 	"errors"
 	"fmt"
-	"github.com/hashicorp/mdns"
-	"github.com/schollz/progressbar/v3"
-	"github.com/urfave/cli/v3"
 	"io"
+	"math/rand"
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
+
+	"cloud.google.com/go/storage"
+	"github.com/hashicorp/mdns"
+	"github.com/schollz/progressbar/v3"
+	"github.com/urfave/cli/v3"
+	"time"
 )
 
 func Drop(ctx context.Context, rootPath string, conn net.Conn, total int64) error {
@@ -40,13 +45,34 @@ func Drop(ctx context.Context, rootPath string, conn net.Conn, total int64) erro
 }
 
 func getKey() string {
-
-	return ""
+	adjectives := []string{"Jumping", "Flying", "Speeding", "Fast", "Dirty", "Playful", "Cloudy", "Hot", "Blessed", "Clean", "Swift", "Cold", "Rising", "Sad", "Happy", "Exotic", "Sunny", "Poisoned", "Sweet", "Great", "Skilled", "Wise", "Smart", "Safe", "Euphoric", "Classy", "Feaverish"}
+	nouns := []string{"Jack", "Wasp", "Dragon", "Panther", "Cat", "Fox", "Dog", "Ghost", "Lion", "Peter", "Hat", "Flee", "Ant", "Watch", "Cloud", "Sun", "Moon", "Star", "Rock", "Max", "Beaver", "Feather", "Plum", "Cherry", "Brush", "Berry", "Master", "Student", "Player", "Sam", "Arnold", "Ring", "Thief", "Judge"}
+	numbers := []string{}
+	for i := range 100 {
+		numbers = append(numbers, strconv.Itoa(i))
+	}
+	key := adjectives[rand.Intn(len(adjectives)-1)] + nouns[rand.Intn(len(nouns)-1)] + numbers[rand.Intn(len(numbers)-1)]
+	return key
 }
 
-func setKey(key string, url string) error {
-
-	return nil
+func generateSignedUrl(gs_url string) (string, error) {
+	ctx := context.Background()
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer client.Close()
+	filename := strings.Split(gs_url, "/")[3]
+	opts := &storage.SignedURLOptions{
+		Scheme:  storage.SigningSchemeV4,
+		Method:  "GET",
+		Expires: time.Now().Add(16 * time.Minute),
+	}
+	u, err := client.Bucket("clouddrop").SignedURL(filename, opts)
+	if err != nil {
+		return "", err
+	}
+	return u, nil
 }
 
 func sendPayload(filePath string, fileInfo os.FileInfo) (string, error) {
@@ -89,14 +115,22 @@ func superSend(ctx context.Context, c *cli.Command) error {
 			return fmt.Errorf("filepath not resolved: %s", file)
 		}
 	}
-	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "./credentials.json")
-	url, err := sendPayload(file, fileInfo)
+	err = os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "./credentials.json")
+	if err != nil {
+		return err
+	}
+	gsUrl, err := sendPayload(file, fileInfo)
 	if err != nil {
 		return err
 	}
 	key := getKey()
-	err = setKey(key, url)
-	return err
+	signedUrl, err := generateSignedUrl(gsUrl)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Access key:", key)
+	fmt.Println("Access URL:", signedUrl)
+	return nil
 }
 
 func Send(ctx context.Context, c *cli.Command) error {
