@@ -2,13 +2,13 @@
 	<img src="./images/logo.png" width="400" height="400" alt="CloudDrop" style="border-radius: 50%;"><br>
 	<h1>CloudDrop</h1>
 </div>
-The idea behind this project are to create a simple CLI tool that allows you to upload files to a cloud storage provider or share files P2P(peer to peer) in a local network
+The idea behind this project is to create a simple CLI tool that allows you to upload files via public internet to a connected client or share files P2P(peer to peer) on a local network.
 
-### Have you ever wanted to share a file with someone or wanted to send a file from your computer to your mobile phone?
+### Have you ever wanted to share a file with someone? I bet you have!
 1. Cloud based approach:
-Well, this is the tool for you! Why use the middleman of Discord, Gmail, Slack, or any other service when you can use a simple script that does not store your data. Take care of your security and privacy by using this script entirely for free.
+Why use the middleman of Discord, Gmail, Slack, or any other service when you can use a simple cli that does not store your data. Take care of your security and privacy by using this tool entirely for free.
 <strong>
-It runs locally on YOUR machine and is connected to YOUR own cloud provider.
+It runs locally on YOUR machine and is connected to a cloud storage provider which handles the encryption and security of your files.
 </strong>
 
 2. P2P approach:
@@ -18,13 +18,13 @@ Pure byte-to-byte P2P sharing, no middleman needed. FULL SECURITY AND PRIVACY.
 </strong>
 
 ### Description
-This is a script that allows you to upload files to a cloud storage provider, and have them be available for sharing using a link. The files are stored in a cloud provider of choice(Azure, Google Cloud, AWS), the program itself is written in Go and is a CLI tool that listens for file uploads in a selected 'drop' directory on your machine.
+Clouddrop enables you to share files or directories either P2P or over the public internet. It uses kafka and google storage. It ensures high security via access codes.
 
 ### Setup and Installation
 To do
 
 ### Usage
-<strong>Peer to Peer on local network</strong>
+<strong>Peer to Peer on local network</strong><br>
 Client A (Sender):
 ````bash
 clouddrop drop /path/to/file
@@ -34,7 +34,7 @@ Client B (Receiver):
 clouddrop pick
 ````
 
-<strong>Over public internet</strong>
+<strong>Over public internet</strong><br>
 Client A (Sender):
 ````bash
 clouddrop send /path/to/file
@@ -53,11 +53,10 @@ clouddrop receive <code>
 | receive | Receive files over public internet. Must provide a valid code received from the sender. |
 
 ### Example use cases:
-1. Share files between computers on your local network (P2P)
-2. Share files over the public internet without cloud storage
-3. Share files on your machine, effectively copying them to the receiver's path
+1. Share files or directories between computers on your local network (P2P).
+2. Share files over the public internet.
+3. Share files on your machine, effectively copying them to the receiver's path.
 
-<strong>Cloud based approach</strong>
-To do
 ### Contributing
 If you want to contribute to this project, you can do so by forking the repository and making a pull request.
+Please be advised that for development purposes, you will need to have an active credentials.json file in the root directory of the project and have an available bucket name in google cloud storage.
