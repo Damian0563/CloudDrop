@@ -1,4 +1,5 @@
 .env
-test
-clouddrop
+/test
+/venv
+clouddrop.exe
 credentials.json
