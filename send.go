@@ -2,21 +2,21 @@ package main
 
 import (
 	"archive/tar"
+	"cloud.google.com/go/storage"
 	"context"
 	"errors"
 	"fmt"
+	"github.com/hashicorp/mdns"
+	"github.com/schollz/progressbar/v3"
+	"github.com/urfave/cli/v3"
 	"io"
 	"math/rand"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"cloud.google.com/go/storage"
-	"github.com/hashicorp/mdns"
-	"github.com/schollz/progressbar/v3"
-	"github.com/urfave/cli/v3"
 	"time"
 )
 
@@ -82,7 +82,8 @@ func sendPayload(filePath string, fileInfo os.FileInfo) (string, error) {
 		return "", err
 	}
 	defer client.Close()
-	bucket := client.Bucket("clouddrop")
+	bucketName := os.Getenv("BUCKET_NAME")
+	bucket := client.Bucket(bucketName)
 	obj := bucket.Object(fileInfo.Name())
 	w := obj.NewWriter(ctx)
 	file, err := os.Open(filePath)
@@ -98,8 +99,26 @@ func sendPayload(filePath string, fileInfo os.FileInfo) (string, error) {
 	if err := w.Close(); err != nil {
 		return "", err
 	}
-	url := fmt.Sprintf("gs://clouddrop/%s", fileInfo.Name())
+	url := fmt.Sprintf("gs://%s/%s", bucketName, fileInfo.Name())
 	return url, nil
+}
+
+func setKey(key string, url string) error {
+	authority := os.Getenv("AUTHORITY") + "/drop"
+	req, err := http.NewRequest("POST", authority, strings.NewReader(fmt.Sprintf(`{"key":"%s","url":"%s"}`, key, url)))
+	if err != nil {
+		return err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	resBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(resBody))
+	return nil
 }
 
 func superSend(ctx context.Context, c *cli.Command) error {
@@ -115,7 +134,9 @@ func superSend(ctx context.Context, c *cli.Command) error {
 			return fmt.Errorf("filepath not resolved: %s", file)
 		}
 	}
-	err = os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "./credentials.json")
+	credentials := os.Getenv("CREDENTIALS_PATH")
+	fmt.Println(credentials)
+	err = os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", credentials)
 	if err != nil {
 		return err
 	}
@@ -128,8 +149,10 @@ func superSend(ctx context.Context, c *cli.Command) error {
 	if err != nil {
 		return err
 	}
+	if err = setKey(key, signedUrl); err != nil {
+		return err
+	}
 	fmt.Println("Access key:", key)
-	fmt.Println("Access URL:", signedUrl)
 	return nil
 }
 

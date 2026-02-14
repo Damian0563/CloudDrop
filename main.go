@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"github.com/joho/godotenv"
 	"github.com/urfave/cli/v3"
 	"log"
 	"os"
 )
 
 func main() {
+	_ = godotenv.Load()
 	app := &cli.Command{
 		Name:  "clouddrop",
 		Usage: "CloudDrop is a simple CLI tool to upload files to cloud storage services.",
