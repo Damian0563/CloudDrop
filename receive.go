@@ -3,6 +3,8 @@ package main
 import (
 	"archive/tar"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/hashicorp/mdns"
 	"github.com/schollz/progressbar/v3"
@@ -10,8 +12,10 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func handleStream(conn net.Conn) error {
@@ -40,8 +44,48 @@ func handleStream(conn net.Conn) error {
 	return nil
 }
 
+func downloadUrl(url string) error {
+	fmt.Println("Downloading file...")
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func superReceive(ctx context.Context, c *cli.Command) error {
-	panic("not implemented")
+	if c.Args().Len() < 1 {
+		return errors.New("you must provide a code, no arguments provided")
+	} else if c.Args().Len() > 1 {
+		return errors.New("you can only provide one code, too many arguments provided")
+	}
+	code := c.Args().First()
+	authority := os.Getenv("AUTHORITY") + "/receive/" + code
+	req, err := http.NewRequest("GET", authority, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	resBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	Response := Response{}
+	err = json.Unmarshal(resBody, &Response)
+	if err != nil {
+		return err
+	}
+	if Response.Status != "ok" {
+		return errors.New(Response.Value)
+	}
+	err = downloadUrl(Response.Value)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func Receive(ctx context.Context, c *cli.Command) error {

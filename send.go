@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"cloud.google.com/go/storage"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/hashicorp/mdns"
@@ -103,6 +104,11 @@ func sendPayload(filePath string, fileInfo os.FileInfo) (string, error) {
 	return url, nil
 }
 
+type Response struct {
+	Status string `json:"status"`
+	Value  string `json:"value"`
+}
+
 func setKey(key string, url string) error {
 	authority := os.Getenv("AUTHORITY") + "/drop"
 	req, err := http.NewRequest("POST", authority, strings.NewReader(fmt.Sprintf(`{"key":"%s","url":"%s"}`, key, url)))
@@ -117,7 +123,14 @@ func setKey(key string, url string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(string(resBody))
+	Response := Response{}
+	err = json.Unmarshal(resBody, &Response)
+	if err != nil {
+		return err
+	}
+	if Response.Status != "ok" {
+		return errors.New(Response.Value)
+	}
 	return nil
 }
 
