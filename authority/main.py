@@ -1,7 +1,9 @@
+from confluent_kafka import TopicPartition
 from confluent_kafka.admin import AdminClient, NewTopic
 from fastapi import FastAPI
-from confluent_kafka import Producer
+from confluent_kafka import Producer, Consumer
 import json
+import time
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -21,6 +23,16 @@ admin_client = AdminClient({
     'sasl.password': os.getenv('KAFKA_API_SECRET'),
     'security.protocol': 'SASL_SSL',
     'sasl.mechanisms': 'PLAIN',
+})
+consumer = Consumer({
+    'bootstrap.servers': os.getenv('BOOTSTRAP_SERVER'),
+    'sasl.username': os.getenv('KAFKA_API_KEY'),
+    'sasl.password': os.getenv('KAFKA_API_SECRET'),
+    'security.protocol': 'SASL_SSL',
+    'sasl.mechanisms': 'PLAIN',
+    'group.id': 'test-group',
+    'auto.offset.reset': 'earliest',
+    'enable.auto.commit': True,
 })
 
 
@@ -48,12 +60,9 @@ def create_expiring_topic(topic_name):
 async def drop(data: dict):
     try:
         create_expiring_topic(data['key'])
-        producer.produce(topic=data['key'], value=json.dumps(
-            data['url']).encode('utf-8'))
-        remaining = producer.flush(3)
-        if remaining > 0:
-            return {"error": "Failed to send message to broker."}
-        return {"ok": "ok"}
+        producer.produce(topic=data['key'], value=data['url'].encode('utf-8'))
+        producer.flush()
+        return {"status": "ok"}
     except Exception as e:
         return {"error": str(e)}
 
@@ -61,7 +70,21 @@ async def drop(data: dict):
 @app.get("/receive/{topic}")
 async def receive(topic: str):
     try:
-        print(topic)
-        return {"ok": "ok"}
+        tp = TopicPartition(topic, 0)
+        consumer.assign([tp])
+        consumer.seek(TopicPartition(topic, 0, 0))
+        msg = None
+        for _ in range(5):
+            msg = consumer.poll(timeout=2.0)
+            if msg is not None:
+                break
+        if msg is None:
+            return {"error": "No data found or code expired."}
+        if msg.error():
+            return {"error": str(msg.error())}
+        admin_client.delete_topics([topic])
+        return {"ok": msg.value().decode('utf-8')}
     except Exception as e:
         return {"error": str(e)}
+    finally:
+        consumer.unassign()

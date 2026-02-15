@@ -3,7 +3,6 @@ package main
 import (
 	"archive/tar"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/hashicorp/mdns"
@@ -45,12 +44,26 @@ func handleStream(conn net.Conn) error {
 }
 
 func downloadUrl(url string) error {
-	fmt.Println("Downloading file...")
 	resp, err := http.Get(url)
 	if err != nil {
 		return err
 	}
-	return nil
+	defer resp.Body.Close()
+	filename := filepath.Base(url)
+	if strings.Contains(filename, "?") {
+		filename = strings.Split(filename, "?")[0]
+	}
+	if filename == "" || filename == "/" {
+		filename = "download"
+	}
+	outFile, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer outFile.Close()
+	bar := progressbar.DefaultBytes(resp.ContentLength, "Downloading")
+	_, err = io.Copy(outFile, io.TeeReader(resp.Body, bar))
+	return err
 }
 
 func superReceive(ctx context.Context, c *cli.Command) error {
@@ -73,18 +86,20 @@ func superReceive(ctx context.Context, c *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	Response := Response{}
-	err = json.Unmarshal(resBody, &Response)
-	if err != nil {
-		return err
-	}
-	if Response.Status != "ok" {
-		return errors.New(Response.Value)
-	}
-	err = downloadUrl(Response.Value)
-	if err != nil {
-		return err
-	}
+	defer resp.Body.Close()
+	fmt.Println(string(resBody))
+	// Response := Response{}
+	// err = json.Unmarshal(resBody, &Response)
+	// if err != nil {
+	// 	return err
+	// }
+	// if Response.Status != "ok" {
+	// 	return errors.New(Response.Value)
+	// }
+	// err = downloadUrl(Response.Value)
+	// if err != nil {
+	// 	return err
+	// }
 	return nil
 }
 

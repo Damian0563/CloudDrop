@@ -105,8 +105,8 @@ func sendPayload(filePath string, fileInfo os.FileInfo) (string, error) {
 }
 
 type Response struct {
-	Status string `json:"status"`
-	Value  string `json:"value"`
+	Ok    string `json:"ok"`
+	Error string `json:"error"`
 }
 
 func setKey(key string, url string) error {
@@ -115,6 +115,7 @@ func setKey(key string, url string) error {
 	if err != nil {
 		return err
 	}
+	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
@@ -123,13 +124,15 @@ func setKey(key string, url string) error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
+	fmt.Println(string(resBody))
 	Response := Response{}
 	err = json.Unmarshal(resBody, &Response)
 	if err != nil {
 		return err
 	}
-	if Response.Status != "ok" {
-		return errors.New(Response.Value)
+	if Response.Ok != "ok" {
+		return errors.New(Response.Error)
 	}
 	return nil
 }
@@ -148,7 +151,6 @@ func superSend(ctx context.Context, c *cli.Command) error {
 		}
 	}
 	credentials := os.Getenv("CREDENTIALS_PATH")
-	fmt.Println(credentials)
 	err = os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", credentials)
 	if err != nil {
 		return err
