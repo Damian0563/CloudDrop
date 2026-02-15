@@ -1,5 +1,7 @@
 .env
 /test
 venv/
-*.exe
 credentials.json
+/authority/venv/
+/authurity/__pycache__/
+clouddrop
