@@ -2,7 +2,6 @@ from confluent_kafka import TopicPartition
 from confluent_kafka.admin import AdminClient, NewTopic
 from fastapi import FastAPI
 from confluent_kafka import Producer, Consumer
-import json
 import time
 import os
 from dotenv import load_dotenv
@@ -70,6 +69,8 @@ async def drop(data: dict):
 @app.get("/receive/{topic}")
 async def receive(topic: str):
     try:
+        if is_topic_empty(topic):
+            return {"status": "error", "error": "No data found or code expired.", "msg": ""}
         tp = TopicPartition(topic, 0)
         consumer.assign([tp])
         msg = None
@@ -87,3 +88,38 @@ async def receive(topic: str):
         return {"status": "error", "error": str(e), "msg": ""}
     finally:
         consumer.unassign()
+
+
+def is_topic_empty(topic_name):
+    try:
+        low, high = consumer.get_watermark_offsets(
+            TopicPartition(topic_name, 0))
+        if high <= low:
+            return True
+        return False
+    except Exception:
+        return True
+
+
+def safe_cleanup(timeout=900):
+    time.sleep(timeout)
+    metadata = admin_client.list_topics(timeout=10)
+    all_topics = metadata.topics.keys()
+    for topic_name in all_topics:
+        if topic_name.startswith('_') or topic_name == 'default':
+            continue
+        try:
+            low, high = consumer.get_watermark_offsets(
+                TopicPartition(topic_name, 0))
+            if high <= low:
+                print(f"Cleanup: Topic {topic_name} is empty. Deleting...")
+                admin_client.delete_topics([topic_name])
+            else:
+                print(f"Cleanup: Topic {
+                      topic_name} still has active messages. Skipping.")
+        except Exception as e:
+            print(f"Could not check topic {topic_name}: {e}")
+    safe_cleanup(900)
+
+
+safe_cleanup()
