@@ -4,6 +4,8 @@ from fastapi import FastAPI
 from confluent_kafka import Producer, Consumer
 import time
 import os
+import json
+import threading
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -33,6 +35,7 @@ consumer = Consumer({
     'auto.offset.reset': 'earliest',
     'enable.auto.commit': True,
 })
+cleanupStarted = False
 
 
 def create_expiring_topic(topic_name):
@@ -58,8 +61,19 @@ def create_expiring_topic(topic_name):
 @app.post("/drop")
 async def drop(data: dict):
     try:
+        global cleanupStarted
+        if not cleanupStarted:
+            cleanupStarted = True
+            t = threading.Thread(target=safe_cleanup)
+            t.start()
         create_expiring_topic(data['key'])
-        producer.produce(topic=data['key'], value=data['url'].encode('utf-8'))
+        payload = {
+            "url": data['url'],
+            "original_name": data.get('original_name', ''),
+            "is_dir": data.get('is_dir', False)
+        }
+        producer.produce(topic=data['key'],
+                         value=json.dumps(payload).encode('utf-8'))
         producer.flush()
         return {"status": "ok", "error": ""}
     except Exception as e:
@@ -70,7 +84,7 @@ async def drop(data: dict):
 async def receive(topic: str):
     try:
         if is_topic_empty(topic):
-            return {"status": "error", "error": "No data found or code expired.", "msg": ""}
+            return {"status": "error", "error": "No data found or code expired.", "msg": "", "original_name": "", "is_dir": False}
         tp = TopicPartition(topic, 0)
         consumer.assign([tp])
         msg = None
@@ -79,13 +93,20 @@ async def receive(topic: str):
             if msg is not None:
                 break
         if msg is None:
-            return {"status": "error", "error": "No data found or code expired.", "msg": ""}
+            return {"status": "error", "error": "No data found or code expired.", "msg": "", "original_name": "", "is_dir": False}
         if msg.error():
-            return {"status": "error", "error": str(msg.error()), "msg": ""}
+            return {"status": "error", "error": str(msg.error()), "msg": "", "original_name": "", "is_dir": False}
         admin_client.delete_topics([topic])
-        return {"status": "ok", "error": "", "msg": msg.value().decode('utf-8')}
+        data = json.loads(msg.value().decode('utf-8'))
+        return {
+            "status": "ok",
+            "error": "",
+            "msg": data.get('url', ''),
+            "original_name": data.get('original_name', ''),
+            "is_dir": data.get('is_dir', False)
+        }
     except Exception as e:
-        return {"status": "error", "error": str(e), "msg": ""}
+        return {"status": "error", "error": str(e), "msg": "", "original_name": "", "is_dir": False}
     finally:
         consumer.unassign()
 
@@ -101,7 +122,7 @@ def is_topic_empty(topic_name):
         return True
 
 
-def safe_cleanup(timeout=900):
+def safe_cleanup(timeout: int = 900):
     time.sleep(timeout)
     metadata = admin_client.list_topics(timeout=10)
     all_topics = metadata.topics.keys()
@@ -119,7 +140,8 @@ def safe_cleanup(timeout=900):
                       topic_name} still has active messages. Skipping.")
         except Exception as e:
             print(f"Could not check topic {topic_name}: {e}")
-    safe_cleanup(900)
+    safe_cleanup()
 
 
-safe_cleanup()
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8000)

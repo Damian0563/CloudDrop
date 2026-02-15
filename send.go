@@ -56,7 +56,7 @@ func getKey() string {
 	return key
 }
 
-func generateSignedUrl(gs_url string) (string, error) {
+func generateSignedUrl(gs_url string, originalName string) (string, error) {
 	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
 	if err != nil {
@@ -76,32 +76,118 @@ func generateSignedUrl(gs_url string) (string, error) {
 	return u, nil
 }
 
-func sendPayload(filePath string, fileInfo os.FileInfo) (string, error) {
+func createTarArchive(sourcePath string, sourceInfo os.FileInfo) (string, int64, error) {
+	tarFile, err := os.CreateTemp("", "clouddrop-*.tar")
+	if err != nil {
+		return "", 0, err
+	}
+	tw := tar.NewWriter(tarFile)
+	err = filepath.WalkDir(sourcePath, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		header, err := tar.FileInfoHeader(info, "")
+		if err != nil {
+			return err
+		}
+		relPath, err := filepath.Rel(filepath.Dir(sourcePath), path)
+		if err != nil {
+			return err
+		}
+		header.Name = relPath
+		if err := tw.WriteHeader(header); err != nil {
+			return err
+		}
+		if !d.IsDir() {
+			f, err := os.Open(path)
+			if err != nil {
+				return err
+			}
+			_, err = io.Copy(tw, f)
+			f.Close()
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		tw.Close()
+		tarFile.Close()
+		os.Remove(tarFile.Name())
+		return "", 0, err
+	}
+
+	if err := tw.Close(); err != nil {
+		tarFile.Close()
+		os.Remove(tarFile.Name())
+		return "", 0, err
+	}
+	if err := tarFile.Close(); err != nil {
+		os.Remove(tarFile.Name())
+		return "", 0, err
+	}
+	stat, err := os.Stat(tarFile.Name())
+	if err != nil {
+		os.Remove(tarFile.Name())
+		return "", 0, err
+	}
+
+	return tarFile.Name(), stat.Size(), nil
+}
+
+func sendPayload(filePath string, fileInfo os.FileInfo) (string, string, error) {
 	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	defer client.Close()
 	bucketName := os.Getenv("BUCKET_NAME")
 	bucket := client.Bucket(bucketName)
-	obj := bucket.Object(fileInfo.Name())
+	var uploadPath string
+	var uploadSize int64
+	var isDir bool
+	var tempTarPath string
+	if fileInfo.IsDir() {
+		isDir = true
+		tempTarPath, uploadSize, err = createTarArchive(filePath, fileInfo)
+		if err != nil {
+			return "", "", err
+		}
+		uploadPath = tempTarPath
+		defer os.Remove(tempTarPath)
+	} else {
+		uploadPath = filePath
+		uploadSize = fileInfo.Size()
+	}
+	objName := fileInfo.Name()
+	if isDir {
+		objName = fileInfo.Name() + ".tar"
+	}
+	obj := bucket.Object(objName)
 	w := obj.NewWriter(ctx)
-	file, err := os.Open(filePath)
+	file, err := os.Open(uploadPath)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	defer file.Close()
-	bar := progressbar.DefaultBytes(fileInfo.Size(), "Sending")
+	bar := progressbar.DefaultBytes(uploadSize, "Sending")
 	_, err = io.Copy(w, io.TeeReader(file, bar))
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if err := w.Close(); err != nil {
-		return "", err
+		return "", "", err
 	}
-	url := fmt.Sprintf("gs://%s/%s", bucketName, fileInfo.Name())
-	return url, nil
+
+	gsUrl := fmt.Sprintf("gs://%s/%s", bucketName, objName)
+	originalName := fileInfo.Name()
+	return gsUrl, originalName, nil
 }
 
 type sendResponse struct {
@@ -109,9 +195,10 @@ type sendResponse struct {
 	Error  string `json:"error"`
 }
 
-func setKey(key string, url string) error {
+func setKey(key string, url string, originalName string, isDir bool) error {
 	authority := os.Getenv("AUTHORITY") + "/drop"
-	req, err := http.NewRequest("POST", authority, strings.NewReader(fmt.Sprintf(`{"key":"%s","url":"%s"}`, key, url)))
+	payload := fmt.Sprintf(`{"key":"%s","url":"%s","original_name":"%s","is_dir":%t}`, key, url, originalName, isDir)
+	req, err := http.NewRequest("POST", authority, strings.NewReader(payload))
 	if err != nil {
 		return err
 	}
@@ -154,16 +241,16 @@ func superSend(ctx context.Context, c *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	gsUrl, err := sendPayload(file, fileInfo)
+	gsUrl, originalName, err := sendPayload(file, fileInfo)
 	if err != nil {
 		return err
 	}
 	key := getKey()
-	signedUrl, err := generateSignedUrl(gsUrl)
+	signedUrl, err := generateSignedUrl(gsUrl, originalName)
 	if err != nil {
 		return err
 	}
-	if err = setKey(key, signedUrl); err != nil {
+	if err = setKey(key, signedUrl, originalName, fileInfo.IsDir()); err != nil {
 		return err
 	}
 	fmt.Println("Access key:", key)

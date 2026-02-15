@@ -44,12 +44,59 @@ func handleStream(conn net.Conn) error {
 	return nil
 }
 
-func downloadUrl(url string) error {
+func extractTar(r io.Reader) error {
+	tr := tar.NewReader(r)
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		switch header.Typeflag {
+		case tar.TypeDir:
+			fmt.Printf("Creating directory: %s\n", header.Name)
+			if err := os.MkdirAll(header.Name, 0755); err != nil {
+				return err
+			}
+		case tar.TypeReg:
+			if err := os.MkdirAll(filepath.Dir(header.Name), 0755); err != nil {
+				return err
+			}
+			outFile, err := os.Create(header.Name)
+			if err != nil {
+				return err
+			}
+			_, err = io.Copy(outFile, tr)
+			outFile.Close()
+			if err != nil {
+				return err
+			}
+			fmt.Printf("  ✓ %s\n", header.Name)
+		}
+	}
+	return nil
+}
+
+func downloadUrl(url string, originalName string, isDir bool) error {
 	resp, err := http.Get(url)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
+	if isDir {
+		fmt.Printf("Receiving directory: %s\n", originalName)
+		if err := os.MkdirAll(originalName, 0755); err != nil {
+			return err
+		}
+		if err := os.Chdir(originalName); err != nil {
+			return err
+		}
+		defer os.Chdir("..")
+		return extractTar(resp.Body)
+	}
+
 	filename := filepath.Base(url)
 	if strings.Contains(filename, "?") {
 		filename = strings.Split(filename, "?")[0]
@@ -62,15 +109,23 @@ func downloadUrl(url string) error {
 		return err
 	}
 	defer outFile.Close()
-	bar := progressbar.DefaultBytes(resp.ContentLength, "Downloading")
-	_, err = io.Copy(outFile, io.TeeReader(resp.Body, bar))
+
+	if resp.ContentLength > 0 {
+		bar := progressbar.DefaultBytes(resp.ContentLength, "Downloading")
+		_, err = io.Copy(outFile, io.TeeReader(resp.Body, bar))
+	} else {
+		bar := progressbar.DefaultBytes(-1, "Downloading")
+		_, err = io.Copy(outFile, io.TeeReader(resp.Body, bar))
+	}
 	return err
 }
 
 type receiveResponse struct {
-	Status string `json:"status"`
-	Error  string `json:"error"`
-	Msg    string `json:"msg"`
+	Status       string `json:"status"`
+	Error        string `json:"error"`
+	Msg          string `json:"msg"`
+	OriginalName string `json:"original_name"`
+	IsDir        bool   `json:"is_dir"`
 }
 
 func superReceive(ctx context.Context, c *cli.Command) error {
@@ -102,7 +157,7 @@ func superReceive(ctx context.Context, c *cli.Command) error {
 	if Response.Status != "ok" {
 		return errors.New(Response.Error)
 	}
-	err = downloadUrl(Response.Msg)
+	err = downloadUrl(Response.Msg, Response.OriginalName, Response.IsDir)
 	if err != nil {
 		return err
 	}
