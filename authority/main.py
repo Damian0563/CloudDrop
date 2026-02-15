@@ -62,9 +62,9 @@ async def drop(data: dict):
         create_expiring_topic(data['key'])
         producer.produce(topic=data['key'], value=data['url'].encode('utf-8'))
         producer.flush()
-        return {"status": "ok"}
+        return {"status": "ok", "error": ""}
     except Exception as e:
-        return {"error": str(e)}
+        return {"status": "error", "error": str(e)}
 
 
 @app.get("/receive/{topic}")
@@ -72,19 +72,18 @@ async def receive(topic: str):
     try:
         tp = TopicPartition(topic, 0)
         consumer.assign([tp])
-        consumer.seek(TopicPartition(topic, 0, 0))
         msg = None
         for _ in range(5):
             msg = consumer.poll(timeout=2.0)
             if msg is not None:
                 break
         if msg is None:
-            return {"error": "No data found or code expired."}
+            return {"status": "error", "error": "No data found or code expired.", "msg": ""}
         if msg.error():
-            return {"error": str(msg.error())}
+            return {"status": "error", "error": str(msg.error()), "msg": ""}
         admin_client.delete_topics([topic])
-        return {"ok": msg.value().decode('utf-8')}
+        return {"status": "ok", "error": "", "msg": msg.value().decode('utf-8')}
     except Exception as e:
-        return {"error": str(e)}
+        return {"status": "error", "error": str(e), "msg": ""}
     finally:
         consumer.unassign()

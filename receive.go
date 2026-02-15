@@ -3,6 +3,7 @@ package main
 import (
 	"archive/tar"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/hashicorp/mdns"
@@ -66,6 +67,12 @@ func downloadUrl(url string) error {
 	return err
 }
 
+type receiveResponse struct {
+	Status string `json:"status"`
+	Error  string `json:"error"`
+	Msg    string `json:"msg"`
+}
+
 func superReceive(ctx context.Context, c *cli.Command) error {
 	if c.Args().Len() < 1 {
 		return errors.New("you must provide a code, no arguments provided")
@@ -87,19 +94,18 @@ func superReceive(ctx context.Context, c *cli.Command) error {
 		return err
 	}
 	defer resp.Body.Close()
-	fmt.Println(string(resBody))
-	// Response := Response{}
-	// err = json.Unmarshal(resBody, &Response)
-	// if err != nil {
-	// 	return err
-	// }
-	// if Response.Status != "ok" {
-	// 	return errors.New(Response.Value)
-	// }
-	// err = downloadUrl(Response.Value)
-	// if err != nil {
-	// 	return err
-	// }
+	Response := receiveResponse{}
+	err = json.Unmarshal(resBody, &Response)
+	if err != nil {
+		return err
+	}
+	if Response.Status != "ok" {
+		return errors.New(Response.Error)
+	}
+	err = downloadUrl(Response.Msg)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

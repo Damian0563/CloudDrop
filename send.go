@@ -104,9 +104,9 @@ func sendPayload(filePath string, fileInfo os.FileInfo) (string, error) {
 	return url, nil
 }
 
-type Response struct {
-	Ok    string `json:"ok"`
-	Error string `json:"error"`
+type sendResponse struct {
+	Status string `json:"status"`
+	Error  string `json:"error"`
 }
 
 func setKey(key string, url string) error {
@@ -125,13 +125,12 @@ func setKey(key string, url string) error {
 		return err
 	}
 	defer resp.Body.Close()
-	fmt.Println(string(resBody))
-	Response := Response{}
+	Response := sendResponse{}
 	err = json.Unmarshal(resBody, &Response)
 	if err != nil {
 		return err
 	}
-	if Response.Ok != "ok" {
+	if Response.Status != "ok" {
 		return errors.New(Response.Error)
 	}
 	return nil
