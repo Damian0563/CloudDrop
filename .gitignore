@@ -3,5 +3,6 @@
 venv/
 credentials.json
 /authority/venv/
-/authurity/__pycache__/
+/authurity/__pycache__
 clouddrop
+timeout.txt
