@@ -15,7 +15,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 )
 
 func handleStream(conn net.Conn) error {
@@ -128,11 +130,45 @@ type receiveResponse struct {
 	IsDir        bool   `json:"is_dir"`
 }
 
+func checkTimeout() error {
+	thisTimestamp := time.Now().Unix()
+	file, err := os.OpenFile("timeout.txt", os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	content, err := io.ReadAll(file)
+	if err != nil {
+		return err
+	}
+	if len(content) == 0 {
+		_, err = file.WriteAt([]byte(fmt.Sprintf("%d\n", thisTimestamp)), 0)
+		return err
+	}
+
+	lastTimeStamp, err := strconv.ParseInt(strings.TrimSpace(string(content)), 10, 64)
+	if err != nil {
+		return err
+	}
+	timeout := thisTimestamp - lastTimeStamp
+	if timeout <= 10 {
+		return fmt.Errorf("please wait %d seconds", 10-timeout)
+	}
+	if err := file.Truncate(0); err != nil {
+		return err
+	}
+	_, err = file.WriteAt([]byte(fmt.Sprintf("%d\n", thisTimestamp)), 0)
+	return err
+}
+
 func superReceive(ctx context.Context, c *cli.Command) error {
 	if c.Args().Len() < 1 {
 		return errors.New("you must provide a code, no arguments provided")
 	} else if c.Args().Len() > 1 {
 		return errors.New("you can only provide one code, too many arguments provided")
+	}
+	if err := checkTimeout(); err != nil {
+		return err
 	}
 	code := c.Args().First()
 	authority := os.Getenv("AUTHORITY") + "/receive/" + code
@@ -166,7 +202,7 @@ func superReceive(ctx context.Context, c *cli.Command) error {
 
 func Receive(ctx context.Context, c *cli.Command) error {
 	log.SetOutput(io.Discard)
-	fmt.Println("Receiving files...")
+	fmt.Println("Awaiting for peers...")
 	entriesCh := make(chan *mdns.ServiceEntry, 4)
 	done := make(chan bool)
 	errorCh := make(chan error)

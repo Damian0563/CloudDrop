@@ -10,6 +10,11 @@ import (
 
 func main() {
 	_ = godotenv.Load()
+	file, err := os.OpenFile("timeout.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
 	app := &cli.Command{
 		Name:  "clouddrop",
 		Usage: "CloudDrop is a simple CLI tool to upload files to cloud storage services.",
