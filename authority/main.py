@@ -2,11 +2,13 @@ from confluent_kafka import TopicPartition
 from confluent_kafka.admin import AdminClient, NewTopic
 from fastapi import FastAPI
 from confluent_kafka import Producer, Consumer
+import datetime
 import time
 import os
 import json
 import threading
 from dotenv import load_dotenv
+from google.cloud import storage
 load_dotenv()
 
 app = FastAPI()
@@ -64,7 +66,9 @@ async def drop(data: dict):
         global cleanupStarted
         if not cleanupStarted:
             cleanupStarted = True
-            t = threading.Thread(target=safe_cleanup)
+            t = threading.Thread(target=cleanup_kafka)
+            t2 = threading.Thread(target=cleanup_gcs)
+            t2.start()
             t.start()
         create_expiring_topic(data['key'])
         payload = {
@@ -122,7 +126,20 @@ def is_topic_empty(topic_name):
         return True
 
 
-def safe_cleanup(timeout: int = 900):
+def cleanup_gcs(timeout: int = 900):
+    time.sleep(timeout)
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.environ[
+        'CREDENTIALS_PATH']
+    storage_client = storage.Client()
+    bucket = storage_client.get_bucket(os.environ['BUCKET_NAME'])
+    blobs = bucket.list_blobs()
+    current_time = datetime.datetime.now()
+    for blob in blobs:
+        if current_time - blob.time_created > datetime.timedelta(minutes=15):
+            blob.delete()
+
+
+def cleanup_kafka(timeout: int = 900):
     time.sleep(timeout)
     metadata = admin_client.list_topics(timeout=10)
     all_topics = metadata.topics.keys()
@@ -140,7 +157,7 @@ def safe_cleanup(timeout: int = 900):
                       topic_name} still has active messages. Skipping.")
         except Exception as e:
             print(f"Could not check topic {topic_name}: {e}")
-    safe_cleanup()
+    cleanup_kafka()
 
 
 if __name__ == "__main__":
