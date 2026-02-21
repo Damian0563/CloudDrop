@@ -21,6 +21,10 @@ import (
 	"time"
 )
 
+var defaultCredentialsPath string
+var defaultBucketName string
+var defaultAuthority string
+
 func Drop(ctx context.Context, rootPath string, conn net.Conn, total int64) error {
 	tw := tar.NewWriter(conn)
 	defer tw.Close()
@@ -148,6 +152,9 @@ func sendPayload(filePath string, fileInfo os.FileInfo) (string, string, error) 
 	}
 	defer client.Close()
 	bucketName := os.Getenv("BUCKET_NAME")
+	if bucketName == "" {
+		bucketName = defaultBucketName
+	}
 	bucket := client.Bucket(bucketName)
 	var uploadPath string
 	var uploadSize int64
@@ -196,7 +203,11 @@ type sendResponse struct {
 }
 
 func setKey(key string, url string, originalName string, isDir bool) error {
-	authority := os.Getenv("AUTHORITY") + "/drop"
+	authority := os.Getenv("AUTHORITY")
+	if authority == "" {
+		authority = defaultAuthority
+	}
+	authority = authority + "/drop"
 	payload := fmt.Sprintf(`{"key":"%s","url":"%s","original_name":"%s","is_dir":%t}`, key, url, originalName, isDir)
 	req, err := http.NewRequest("POST", authority, strings.NewReader(payload))
 	if err != nil {
@@ -237,6 +248,9 @@ func superSend(ctx context.Context, c *cli.Command) error {
 		}
 	}
 	credentials := os.Getenv("CREDENTIALS_PATH")
+	if credentials == "" {
+		credentials = defaultCredentialsPath
+	}
 	err = os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", credentials)
 	if err != nil {
 		return err

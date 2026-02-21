@@ -185,7 +185,11 @@ func superReceive(ctx context.Context, c *cli.Command) error {
 		return err
 	}
 	code := c.Args().First()
-	authority := os.Getenv("AUTHORITY") + "/receive/" + code
+	authority := os.Getenv("AUTHORITY")
+	if authority == "" {
+		authority = defaultAuthority
+	}
+	authority = authority + "/receive/" + code
 	req, err := http.NewRequest("GET", authority, nil)
 	if err != nil {
 		return err
