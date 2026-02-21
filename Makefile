@@ -11,10 +11,12 @@ LDFLAGS=-ldflags="-s -w \
 	-X main.defaultAuthority=$(AUTHORITY)"
 
 all:
-	@echo "Run make install to install the binary"
+	echo "Run make install to install the binary"
 install:
+	echo "Installing clouddrop..."
 	@go build $(LDFLAGS) -o $(BINARY_NAME) $(GO_FILES)
 	@sudo cp $(BINARY_NAME) $(TARGET)
+	echo "Installation complete! You can now run 'clouddrop' from the terminal."
 uninstall:
 	@sudo rm -f $(TARGET)
 

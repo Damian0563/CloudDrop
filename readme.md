@@ -28,11 +28,16 @@ CloudDrop enables you to share files or directories either P2P or over the publi
 ---
 
 ## Setup and Installation
+Clone the repository and download tar.gz file or download it directly here `clouddrop.tar.gz`([Download](https://github.com/Damian0563/CloudDrop/blob/master/clouddrop.tar.gz)) file.
+```bash
+tar -xvf clouddrop.tar.gz
+```
+### 2. Install
 
-_To be added_
-
+```bash
+sudo cp clouddrop /usr/local/bin/
+```
 ---
-
 ## Usage
 
 ### Peer-to-Peer (Local Network)
