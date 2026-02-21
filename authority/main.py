@@ -150,11 +150,7 @@ def cleanup_kafka(timeout: int = 900):
             low, high = consumer.get_watermark_offsets(
                 TopicPartition(topic_name, 0))
             if high <= low:
-                print(f"Cleanup: Topic {topic_name} is empty. Deleting...")
                 admin_client.delete_topics([topic_name])
-            else:
-                print(f"Cleanup: Topic {
-                      topic_name} still has active messages. Skipping.")
         except Exception as e:
             print(f"Could not check topic {topic_name}: {e}")
     cleanup_kafka()
