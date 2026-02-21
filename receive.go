@@ -113,7 +113,7 @@ func downloadUrl(url string, originalName string, isDir bool) error {
 	defer outFile.Close()
 
 	if resp.ContentLength > 0 {
-		bar := progressbar.DefaultBytes(resp.ContentLength, "Downloading")
+		bar := progressbar.DefaultBytes(resp.ContentLength, "Downloading"+originalName)
 		_, err = io.Copy(outFile, io.TeeReader(resp.Body, bar))
 	} else {
 		bar := progressbar.DefaultBytes(-1, "Downloading")
@@ -145,19 +145,33 @@ func checkTimeout() error {
 		_, err = file.WriteAt([]byte(fmt.Sprintf("%d\n", thisTimestamp)), 0)
 		return err
 	}
-
-	lastTimeStamp, err := strconv.ParseInt(strings.TrimSpace(string(content)), 10, 64)
+	lines := strings.Split(strings.TrimSpace(string(content)), "\n")
+	lastTimeStamp, err := strconv.ParseInt(lines[0], 10, 64)
 	if err != nil {
 		return err
 	}
+	secondLast := int64(0)
+	if len(lines) > 1 {
+		secondLast, _ = strconv.ParseInt(lines[1], 10, 64)
+	}
 	timeout := thisTimestamp - lastTimeStamp
-	if timeout <= 10 {
+	if secondLast > 0 {
+		timeout = thisTimestamp - secondLast
+	}
+	if timeout < 10 {
 		return fmt.Errorf("please wait %d seconds", 10-timeout)
+	}
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return err
 	}
 	if err := file.Truncate(0); err != nil {
 		return err
 	}
-	_, err = file.WriteAt([]byte(fmt.Sprintf("%d\n", thisTimestamp)), 0)
+	if secondLast == 0 {
+		_, err = file.WriteAt([]byte(fmt.Sprintf("%d\n%d\n", lastTimeStamp, thisTimestamp)), 0)
+		return err
+	}
+	_, err = file.WriteAt([]byte(fmt.Sprintf("%d\n%d\n", secondLast, thisTimestamp)), 0)
 	return err
 }
 
