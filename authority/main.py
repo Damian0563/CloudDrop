@@ -1,18 +1,21 @@
 from confluent_kafka import TopicPartition
+from datetime import timezone
 from confluent_kafka.admin import AdminClient, NewTopic
 from fastapi import FastAPI, status,  HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Annotated
 from confluent_kafka import Producer, Consumer
+import threading
 import datetime
 import time
 import os
 import json
-import threading
 from dotenv import load_dotenv
 from google.cloud import storage
+import uvicorn
 load_dotenv()
-
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.environ[
+    'CREDENTIALS_PATH']
 app = FastAPI()
 producer = Producer({
     'bootstrap.servers': os.getenv('BOOTSTRAP_SERVER'),
@@ -39,7 +42,6 @@ consumer = Consumer({
     'auto.offset.reset': 'earliest',
     'enable.auto.commit': True,
 })
-cleanupStarted = False
 
 
 def create_expiring_topic(topic_name):
@@ -78,13 +80,6 @@ async def validate_token(credentials: Annotated[HTTPAuthorizationCredentials, De
 @app.post("/drop")
 async def drop(data: dict, authorized: bool = Depends(validate_token)):
     try:
-        global cleanupStarted
-        if not cleanupStarted:
-            cleanupStarted = True
-            t = threading.Thread(target=cleanup_kafka)
-            t2 = threading.Thread(target=cleanup_gcs)
-            t2.start()
-            t.start()
         create_expiring_topic(data['key'])
         payload = {
             "url": data['url'],
@@ -141,21 +136,19 @@ def is_topic_empty(topic_name):
         return True
 
 
-def cleanup_gcs(timeout: int = 900):
-    time.sleep(timeout)
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.environ[
-        'CREDENTIALS_PATH']
+def cleanup_gcs():
     storage_client = storage.Client()
     bucket = storage_client.get_bucket(os.environ['BUCKET_NAME'])
     blobs = bucket.list_blobs()
-    current_time = datetime.datetime.now()
+    now = datetime.datetime.now(timezone.utc)
     for blob in blobs:
-        if current_time - blob.time_created > datetime.timedelta(minutes=15):
+        age = now - blob.time_created
+        if age > datetime.timedelta(minutes=15):
+            print(f"Deleting expired blob: {blob.name}")
             blob.delete()
 
 
-def cleanup_kafka(timeout: int = 900):
-    time.sleep(timeout)
+def cleanup_kafka():
     metadata = admin_client.list_topics(timeout=10)
     all_topics = metadata.topics.keys()
     for topic_name in all_topics:
@@ -163,13 +156,28 @@ def cleanup_kafka(timeout: int = 900):
             continue
         try:
             low, high = consumer.get_watermark_offsets(
-                TopicPartition(topic_name, 0))
+                TopicPartition(topic_name, 0), timeout=2.0)
             if high <= low:
-                admin_client.delete_topics([topic_name])
+                try:
+                    admin_client.delete_topics([topic_name])
+                except Exception:
+                    continue
         except Exception as e:
             print(f"Could not check topic {topic_name}: {e}")
-    cleanup_kafka()
+
+
+def run_continuously():
+    while True:
+        try:
+            print("Running cleanup cycle...")
+            cleanup_gcs()
+            cleanup_kafka()
+        except Exception as e:
+            print(f"Cleanup error: {e}")
+        time.sleep(600)
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000)
+    cleanup_thread = threading.Thread(target=run_continuously, daemon=True)
+    cleanup_thread.start()
+    uvicorn.run(app, host="0.0.0.0", port=8000)
