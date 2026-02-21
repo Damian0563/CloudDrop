@@ -92,18 +92,29 @@ Contributions are welcome! To get started:
 ### Development Requirements
 
 For development, you will need:
-- An active `credentials.json` file in the project root
+- An active `credentials.json` file in the project root (for Authority server)
 - An available bucket name in Google Cloud Storage
 
 ### Environment Variables
 
-The following environment variables are required for development:
+The project uses separate `.env` files for the CLI and the Authority server. Copy the appropriate example files and fill in the values.
+
+#### CLI (`.env`)
 
 | Variable | Description |
 |----------|-------------|
+| `SECRET` | Secret key for encryption/authentication |
+| `AUTHORITY` | URL of the authority server |
+| `BUCKET_NAME` | Google Cloud Storage bucket name |
+| `GOOGLE_JSON` | Google Cloud service account credentials (JSON string) |
+
+#### Authority Server (`authority/.env`)
+
+| Variable | Description |
+|----------|-------------|
+| `SECRET` | Secret key for encryption/authentication |
 | `BUCKET_NAME` | Google Cloud Storage bucket name |
 | `CREDENTIALS_PATH` | Path to your Google Cloud credentials.json file |
-| `AUTHORITY` | URL of the authority server |
 | `BOOTSTRAP_SERVER` | Kafka bootstrap server address |
 | `KAFKA_API_KEY` | Kafka API key |
 | `KAFKA_API_SECRET` | Kafka API secret |
