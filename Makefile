@@ -4,12 +4,10 @@ BINARY_NAME=clouddrop
 GO_FILES=$(shell find . -name '*.go' -not -path './authority/*')
 INSTALL_DIR=/usr/local/bin
 TARGET=$(INSTALL_DIR)/$(BINARY_NAME)
-CREDENTIALS_PATH?=$(HOME)/.clouddrop/credentials.json
-BUCKET_NAME?=clouddrop
+SHARED_SECRET?=changeme
 AUTHORITY?=http://34.118.126.125:8000
 LDFLAGS=-ldflags="-s -w \
-	-X main.defaultCredentialsPath=$(CREDENTIALS_PATH) \
-	-X main.defaultBucketName=$(BUCKET_NAME) \
+	-X main.defaultSharedSecret=$(SHARED_SECRET) \
 	-X main.defaultAuthority=$(AUTHORITY)"
 
 all:
@@ -19,4 +17,8 @@ install:
 	@sudo cp $(BINARY_NAME) $(TARGET)
 uninstall:
 	@sudo rm -f $(TARGET)
+
+release:
+	@go build $(LDFLAGS) -o $(BINARY_NAME) $(GO_FILES)
+	@tar -czvf clouddrop-$(shell uname -s | tr '[:upper:]' '[:lower:]')-$(shell uname -m).tar.gz $(BINARY_NAME)
 

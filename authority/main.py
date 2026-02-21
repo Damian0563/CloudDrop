@@ -1,6 +1,8 @@
 from confluent_kafka import TopicPartition
 from confluent_kafka.admin import AdminClient, NewTopic
-from fastapi import FastAPI
+from fastapi import FastAPI, status,  HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from typing import Annotated
 from confluent_kafka import Producer, Consumer
 import datetime
 import time
@@ -60,8 +62,21 @@ def create_expiring_topic(topic_name):
             print(f"Failed to create topic {topic}: {e}")
 
 
+security = HTTPBearer()
+
+
+async def validate_token(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]):
+    token = credentials.credentials
+    if token != os.getenv('SECRET'):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized request."
+        )
+    return True
+
+
 @app.post("/drop")
-async def drop(data: dict):
+async def drop(data: dict, authorized: bool = Depends(validate_token)):
     try:
         global cleanupStarted
         if not cleanupStarted:
@@ -85,7 +100,7 @@ async def drop(data: dict):
 
 
 @app.get("/receive/{topic}")
-async def receive(topic: str):
+async def receive(topic: str, authorized: bool = Depends(validate_token)):
     try:
         if is_topic_empty(topic):
             return {"status": "error", "error": "No data found or code expired.", "msg": "", "original_name": "", "is_dir": False}

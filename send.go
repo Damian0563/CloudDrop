@@ -2,14 +2,10 @@ package main
 
 import (
 	"archive/tar"
-	"cloud.google.com/go/storage"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/hashicorp/mdns"
-	"github.com/schollz/progressbar/v3"
-	"github.com/urfave/cli/v3"
 	"io"
 	"math/rand"
 	"net"
@@ -19,9 +15,16 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"cloud.google.com/go/storage"
+	"github.com/hashicorp/mdns"
+	"github.com/schollz/progressbar/v3"
+	"github.com/urfave/cli/v3"
+	"google.golang.org/api/option"
 )
 
-var defaultCredentialsPath string
+var defaultGoogleJson string
+var defaultSecret string
 var defaultBucketName string
 var defaultAuthority string
 
@@ -60,20 +63,28 @@ func getKey() string {
 	return key
 }
 
-func generateSignedUrl(gs_url string, originalName string) (string, error) {
+func generateSignedUrl(gsUrl string, originalName string) (string, error) {
 	ctx := context.Background()
-	client, err := storage.NewClient(ctx)
+	googleCredentials := os.Getenv("GOOGLE_JSON")
+	if googleCredentials == "" {
+		googleCredentials = defaultGoogleJson
+	}
+	client, err := storage.NewClient(ctx, option.WithCredentialsJSON([]byte(googleCredentials)))
 	if err != nil {
 		return "", err
 	}
 	defer client.Close()
-	filename := strings.Split(gs_url, "/")[3]
+	filename := strings.Split(gsUrl, "/")[3]
 	opts := &storage.SignedURLOptions{
 		Scheme:  storage.SigningSchemeV4,
 		Method:  "GET",
 		Expires: time.Now().Add(16 * time.Minute),
 	}
-	u, err := client.Bucket("clouddrop").SignedURL(filename, opts)
+	bucketName := os.Getenv("BUCKET_NAME")
+	if bucketName == "" {
+		bucketName = defaultBucketName
+	}
+	u, err := client.Bucket(bucketName).SignedURL(filename, opts)
 	if err != nil {
 		return "", err
 	}
@@ -146,7 +157,11 @@ func createTarArchive(sourcePath string, sourceInfo os.FileInfo) (string, int64,
 
 func sendPayload(filePath string, fileInfo os.FileInfo) (string, string, error) {
 	ctx := context.Background()
-	client, err := storage.NewClient(ctx)
+	googleCredentials := os.Getenv("GOOGLE_JSON")
+	if googleCredentials == "" {
+		googleCredentials = defaultGoogleJson
+	}
+	client, err := storage.NewClient(ctx, option.WithCredentialsJSON([]byte(googleCredentials)))
 	if err != nil {
 		return "", "", err
 	}
@@ -214,6 +229,12 @@ func setKey(key string, url string, originalName string, isDir bool) error {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	secret := os.Getenv("SECRET")
+	if secret == "" {
+		secret = defaultSecret
+	}
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", secret))
+	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
@@ -246,14 +267,6 @@ func superSend(ctx context.Context, c *cli.Command) error {
 		if os.IsNotExist(err) {
 			return fmt.Errorf("filepath not resolved: %s", file)
 		}
-	}
-	credentials := os.Getenv("CREDENTIALS_PATH")
-	if credentials == "" {
-		credentials = defaultCredentialsPath
-	}
-	err = os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", credentials)
-	if err != nil {
-		return err
 	}
 	gsUrl, originalName, err := sendPayload(file, fileInfo)
 	if err != nil {
