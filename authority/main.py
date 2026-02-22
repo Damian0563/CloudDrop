@@ -138,13 +138,12 @@ def is_topic_empty(topic_name):
 
 def cleanup_gcs():
     storage_client = storage.Client()
-    bucket = storage_client.get_bucket(os.environ['BUCKET_NAME'])
+    bucket = storage_client.bucket(os.environ['BUCKET_NAME'])
     blobs = bucket.list_blobs()
     now = datetime.datetime.now(timezone.utc)
     for blob in blobs:
         age = now - blob.time_created
         if age > datetime.timedelta(minutes=15):
-            print(f"Deleting expired blob: {blob.name}")
             blob.delete()
 
 
