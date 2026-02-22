@@ -113,7 +113,7 @@ func downloadUrl(url string, originalName string, isDir bool) error {
 	defer outFile.Close()
 
 	if resp.ContentLength > 0 {
-		bar := progressbar.DefaultBytes(resp.ContentLength, "Downloading"+originalName)
+		bar := progressbar.DefaultBytes(resp.ContentLength, "Downloading "+originalName)
 		_, err = io.Copy(outFile, io.TeeReader(resp.Body, bar))
 	} else {
 		bar := progressbar.DefaultBytes(-1, "Downloading")
