@@ -179,4 +179,4 @@ def run_continuously():
 if __name__ == "__main__":
     cleanup_thread = threading.Thread(target=run_continuously, daemon=True)
     cleanup_thread.start()
-    uvicorn.run(app, host="0.0.0.0", port=5000)
+    uvicorn.run(app, host="0.0.0.0", port=8080)
