@@ -93,14 +93,6 @@ func downloadUrl(url string, originalName string, isDir bool) error {
 	return err
 }
 
-type receiveResponse struct {
-	Status       string `json:"status"`
-	Error        string `json:"error"`
-	Msg          string `json:"msg"`
-	OriginalName string `json:"original_name"`
-	IsDir        bool   `json:"is_dir"`
-}
-
 func checkTimeout() error {
 	thisTimestamp := time.Now().Unix()
 	file, err := os.OpenFile("timeout.txt", os.O_RDWR|os.O_CREATE, 0666)

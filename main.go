@@ -73,6 +73,7 @@ func main() {
 					log.Println("--- Limits ---")
 					log.Println("  File expiry (Public Internet): 5 minutes after code generation")
 					log.Println("  File expiry (P2P): No expiry (real-time transfer)")
+					log.Println("  Maximum instance size (send method): 5GB")
 					return nil
 				},
 			},

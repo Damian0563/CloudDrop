@@ -71,6 +71,14 @@ clouddrop receive <code>
 | `send` | Upload files over public internet. Must provide a valid file path. |
 | `receive` | Receive files over public internet. Must provide a valid code received from the sender. |
 
+### Limits
+
+| Limit | Value |
+|-------|-------|
+| Maximum file size (send method) | 5GB |
+| File expiry (Public Internet) | 5 minutes after code generation |
+| File expiry (P2P) | No expiry (real-time transfer) |
+
 ---
 
 ## Example Use Cases

@@ -31,7 +31,7 @@ func getKey() string {
 	return key
 }
 
-func createTarArchive(sourcePath string, sourceInfo os.FileInfo) (string, int64, error) {
+func createTarArchive(sourcePath string) (string, int64, error) {
 	tarFile, err := os.CreateTemp("", "clouddrop-*.tar")
 	if err != nil {
 		return "", 0, err
@@ -145,7 +145,7 @@ func sendPayload(filePath string, fileInfo os.FileInfo) (string, string, error) 
 	var tempTarPath string
 	if fileInfo.IsDir() {
 		isDir = true
-		tempTarPath, uploadSize, err = createTarArchive(filePath, fileInfo)
+		tempTarPath, uploadSize, err = createTarArchive(filePath)
 		if err != nil {
 			return "", "", err
 		}
@@ -154,6 +154,9 @@ func sendPayload(filePath string, fileInfo os.FileInfo) (string, string, error) 
 	} else {
 		uploadPath = filePath
 		uploadSize = fileInfo.Size()
+	}
+	if uploadSize > 5*1024*1024*1024 {
+		return "", "", fmt.Errorf("file size is too large: %d", uploadSize)
 	}
 	objName := fileInfo.Name()
 	if isDir {
@@ -178,11 +181,6 @@ func sendPayload(filePath string, fileInfo os.FileInfo) (string, string, error) 
 	gsUrl := fmt.Sprintf("gs://%s/%s", bucketName, objName)
 	originalName := fileInfo.Name()
 	return gsUrl, originalName, nil
-}
-
-type sendResponse struct {
-	Status string `json:"status"`
-	Error  string `json:"error"`
 }
 
 func setKey(key string, url string, originalName string, isDir bool) error {
