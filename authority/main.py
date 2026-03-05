@@ -44,6 +44,20 @@ consumer = Consumer({
 })
 
 
+security = HTTPBearer()
+lastSweep = 0
+
+
+async def validate_token(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]):
+    token = credentials.credentials
+    if token != os.getenv('SECRET'):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized request."
+        )
+    return True
+
+
 def create_expiring_topic(topic_name):
     retention_ms = "300000"
     new_topic = NewTopic(
@@ -64,22 +78,13 @@ def create_expiring_topic(topic_name):
             print(f"Failed to create topic {topic}: {e}")
 
 
-security = HTTPBearer()
-
-
-async def validate_token(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]):
-    token = credentials.credentials
-    if token != os.getenv('SECRET'):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Unauthorized request."
-        )
-    return True
-
-
 @app.post("/drop")
 async def drop(data: dict, authorized: bool = Depends(validate_token)):
     try:
+        global lastSweep
+        if time.time() - lastSweep > 600:
+            run_continuously()
+            lastSweep = time.time()
         create_expiring_topic(data['key'])
         payload = {
             "url": data['url'],
@@ -166,17 +171,11 @@ def cleanup_kafka():
 
 
 def run_continuously():
-    while True:
-        try:
-            print("Running cleanup cycle...")
-            cleanup_gcs()
-            cleanup_kafka()
-        except Exception as e:
-            print(f"Cleanup error: {e}")
-        time.sleep(600)
+    t1 = threading.Thread(target=cleanup_gcs, daemon=True)
+    t2 = threading.Thread(target=cleanup_kafka, daemon=True)
+    t1.start()
+    t2.start()
 
 
 if __name__ == "__main__":
-    cleanup_thread = threading.Thread(target=run_continuously, daemon=True)
-    cleanup_thread.start()
     uvicorn.run(app, host="0.0.0.0", port=8080)
