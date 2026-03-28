@@ -7,3 +7,4 @@ credentials.json
 /authurity/__pycache__
 clouddrop
 timeout.txt
+Makefile

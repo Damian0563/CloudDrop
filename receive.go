@@ -149,13 +149,13 @@ func superReceive(ctx context.Context, c *cli.Command) error {
 	}
 	code := c.Args().First()
 	authority := os.Getenv("AUTHORITY")
-	if authority == "" {
+	if MODE == "PROD" {
 		authority = defaultAuthority
 	}
 	authority = authority + "/receive/" + code
 	req, err := http.NewRequest("GET", authority, nil)
 	secret := os.Getenv("SECRET")
-	if secret == "" {
+	if MODE == "PROD" {
 		secret = defaultSecret
 	}
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", secret))

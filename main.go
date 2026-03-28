@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"encoding/base64"
+	"encoding/json"
 	"github.com/joho/godotenv"
 	"github.com/urfave/cli/v3"
 	"log"
@@ -19,9 +21,18 @@ var defaultGoogleJson string
 var defaultSecret string
 var defaultBucketName string
 var defaultAuthority string
+var MODE string = "PROD"
 
 func main() {
 	_ = godotenv.Load()
+	if decoded, err := base64.StdEncoding.DecodeString(defaultGoogleJson); err == nil {
+		var prettyJSON map[string]interface{}
+		if json.Unmarshal(decoded, &prettyJSON) == nil {
+			if prettyBytes, err := json.Marshal(prettyJSON); err == nil {
+				defaultGoogleJson = string(prettyBytes)
+			}
+		}
+	}
 	file, err := os.OpenFile("timeout.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatal(err)

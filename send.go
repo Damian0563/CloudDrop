@@ -98,7 +98,7 @@ func createTarArchive(sourcePath string) (string, int64, error) {
 func generateSignedUrl(gsUrl string, originalName string) (string, error) {
 	ctx := context.Background()
 	googleCredentials := os.Getenv("GOOGLE_JSON")
-	if googleCredentials == "" {
+	if MODE == "PROD" {
 		googleCredentials = defaultGoogleJson
 	}
 	client, err := storage.NewClient(ctx, option.WithCredentialsJSON([]byte(googleCredentials)))
@@ -113,7 +113,7 @@ func generateSignedUrl(gsUrl string, originalName string) (string, error) {
 		Expires: time.Now().Add(16 * time.Minute),
 	}
 	bucketName := os.Getenv("BUCKET_NAME")
-	if bucketName == "" {
+	if MODE == "PROD" {
 		bucketName = defaultBucketName
 	}
 	u, err := client.Bucket(bucketName).SignedURL(filename, opts)
@@ -126,7 +126,7 @@ func generateSignedUrl(gsUrl string, originalName string) (string, error) {
 func sendPayload(filePath string, fileInfo os.FileInfo) (string, string, error) {
 	ctx := context.Background()
 	googleCredentials := os.Getenv("GOOGLE_JSON")
-	if googleCredentials == "" {
+	if MODE == "PROD" {
 		googleCredentials = defaultGoogleJson
 	}
 	client, err := storage.NewClient(ctx, option.WithCredentialsJSON([]byte(googleCredentials)))
@@ -135,7 +135,7 @@ func sendPayload(filePath string, fileInfo os.FileInfo) (string, string, error) 
 	}
 	defer client.Close()
 	bucketName := os.Getenv("BUCKET_NAME")
-	if bucketName == "" {
+	if MODE == "PROD" {
 		bucketName = defaultBucketName
 	}
 	bucket := client.Bucket(bucketName)
@@ -185,7 +185,7 @@ func sendPayload(filePath string, fileInfo os.FileInfo) (string, string, error) 
 
 func setKey(key string, url string, originalName string, isDir bool) error {
 	authority := os.Getenv("AUTHORITY")
-	if authority == "" {
+	if MODE == "PROD" {
 		authority = defaultAuthority
 	}
 	authority = authority + "/drop"
@@ -195,8 +195,9 @@ func setKey(key string, url string, originalName string, isDir bool) error {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
+
 	secret := os.Getenv("SECRET")
-	if secret == "" {
+	if MODE == "PROD" {
 		secret = defaultSecret
 	}
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", secret))
