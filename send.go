@@ -195,7 +195,6 @@ func setKey(key string, url string, originalName string, isDir bool) error {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-
 	secret := os.Getenv("SECRET")
 	if MODE == "PROD" {
 		secret = defaultSecret

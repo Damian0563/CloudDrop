@@ -17,6 +17,13 @@ import (
 	"time"
 )
 
+func getTimeoutPath() string {
+	if MODE != "PROD" {
+		return "./timeout.txt"
+	}
+	return string(filepath.Join(os.TempDir(), "timeout.txt"))
+}
+
 func extractTar(r io.Reader) error {
 	tr := tar.NewReader(r)
 	for {
@@ -95,7 +102,7 @@ func downloadUrl(url string, originalName string, isDir bool) error {
 
 func checkTimeout() error {
 	thisTimestamp := time.Now().Unix()
-	file, err := os.OpenFile("timeout.txt", os.O_RDWR|os.O_CREATE, 0666)
+	file, err := os.OpenFile(getTimeoutPath(), os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
 		return err
 	}
