@@ -7,6 +7,11 @@
 
 ---
 
+<strong>
+Attention: This project is on hold for the time being due to billing issues related to kafka client.
+This only affects the cloud based approach when sharing files over the internet, but not the P2P method, which is fully operational.
+</strong>
+
 ## Overview
 
 CloudDrop allows you to share files in two ways:
