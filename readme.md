@@ -7,11 +7,6 @@
 
 ---
 
-<strong>
-Attention: This project is on hold for the time being due to billing issues related to kafka client.
-This only affects the cloud based approach when sharing files over the internet, but not the P2P method, which is fully operational.
-</strong>
-
 ## Overview
 
 CloudDrop allows you to share files in two ways:
@@ -32,7 +27,7 @@ CloudDrop enables you to share files or directories either P2P or over the publi
 
 ---
 
-## Setup and Installation
+## Setup and Installation- Linux
 Clone the repository and download tar.gz file or download it directly here `clouddrop.tar.gz`([Download](https://github.com/Damian0563/CloudDrop/blob/master/clouddrop.tar.gz)) file.
 ```bash
 tar -xvf clouddrop.tar.gz
@@ -132,3 +127,5 @@ The project uses separate `.env` files for the CLI and the Authority server. Cop
 | `BOOTSTRAP_SERVER` | Kafka bootstrap server address |
 | `KAFKA_API_KEY` | Kafka API key |
 | `KAFKA_API_SECRET` | Kafka API secret |
+## License
+[MIT](https://choosealicense.com/licenses/mit/)
