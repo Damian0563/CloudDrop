@@ -1,3 +1,4 @@
+**Note: This project has been deprecated, it is no longer developed or maintained. The tool can still be used, but with BYOT philosophy- fill out envrionment variables and download using a makefile**
 <div align="center">
 	<img src="./images/logo.png" width="400" height="400" alt="CloudDrop" style="border-radius: 50%;">
 	<h1>CloudDrop</h1>
