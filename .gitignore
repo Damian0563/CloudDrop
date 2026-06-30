@@ -1,10 +1,6 @@
-.env
 /test
 venv/
-credentials.json
-/authority/credentials.json
-/authority/venv/
-/authurity/__pycache__
+authority/venv/
+authority/__pycache__
 clouddrop
 timeout.txt
-Makefile
